@@ -15,6 +15,8 @@ def register_broadcast():
     # If no unique identifier is in the request, we make one
     if data['broadcaster_id'] is None:
         broadcaster_id = f"broadcaster-{uuid.uuid4().hex[:8]}"
+    else:
+        broadcaster_id = data["broadcaster_id"]
     broadcasts[broadcaster_id] = {
         "broadcaster_id": data['broadcaster_id'],
         "stream_url": data['stream_url'],
