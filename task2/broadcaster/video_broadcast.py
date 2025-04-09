@@ -57,7 +57,7 @@ def register_broadcaster(broadcaster_id, server_address):
     headers = {'Content-Type': 'application/json'}
     payload = {
         "broadcaster_id": broadcaster_id,
-        "stream_url": f"rtsp://{server_address}:{RTSP_PORT}{broadcaster_id}"
+        "stream_url": f"rtsp://{server_address}:{RTSP_PORT}/{broadcaster_id}"
     }
     try:
         response = requests.post(endpoint, headers=headers, data=json.dumps(payload))
@@ -256,7 +256,7 @@ def main():
     server.attach(None)
 
     server_address = server.get_address() or "localhost" # Get bound address if possible
-    print(f"RTSP server ready at rtsp://{server_address}:{RTSP_PORT}{args.broadcaster_id}")
+    print(f"RTSP server ready at rtsp://{server_address}:{RTSP_PORT}/{args.broadcaster_id}")
     print(f"Using source type: {args.src_type}, source: {args.src}")
 
     # Time to register this broadcaster with the discovery server
