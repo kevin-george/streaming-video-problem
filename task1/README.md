@@ -1,11 +1,37 @@
-## Installation on macOS
+# Task 1
 
-`brew install gstreamer gst-plugins-base gst-plugins-good gst-rtsp-server`
+## Installation on Ubuntu 24.10
 
+```
+# GStreamer Core & Plugins
+sudo apt install \
+    gstreamer1.0-tools \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    gstreamer1.0-rtsp \
+    libgstreamer-plugins-base1.0-dev -y
 
-## Task 1
-1. Displaying the video stream to the screen
+# GObject Introspection & Python Bindings
+sudo apt install \
+    python3-gi \
+    python3-gst-1.0 \
+    gir1.2-gstreamer-1.0 \
+    gir1.2-gst-plugins-base-1.0 \
+    gir1.2-gst-rtsp-server-1.0 \
+    gir1.2-glib-2.0 -y
 
-    a. python3 video_broadcast.py # This creates a broadcaster so a single instance is needed
+# Ensure your user has access to webcam device
+sudo usermod -aG video $USER
+```
+
+## Usage of scripts
+```
+python3 video_broadcast.py # This creates a broadcaster so a single instance is needed
     
-    b. python3 video_consumer.py # This creates a consumer so create as many as the system supports
+python3 video_consumer.py
+OR
+python3 video_consumer_with_opencv.py 
+```
