@@ -57,8 +57,9 @@ def list_broadcasts(broadcaster_id):
         response = requests.get(f"{DISCOVERY_SERVER_URL}/broadcasts")
         response.raise_for_status()
         broadcasts_list = response.json()
-        print("\nList of All Broadcasts:")
-        print(json.dumps(broadcasts_list, indent=4))
+        if broadcaster_id is None:
+            print("\nList of All Broadcasts:")
+            print(json.dumps(broadcasts_list, indent=4))
     except requests.exceptions.RequestException as e:
         print(f"Error listing broadcasts: {e}")
         if response is not None:
@@ -75,7 +76,7 @@ def list_broadcasts(broadcaster_id):
 
 def main():
     parser = argparse.ArgumentParser(description="Video Consumer")
-    parser.add_argument("--broadcaster_id", help="The unique ID for broadcast(s) that are comma separated")
+    parser.add_argument("--broadcaster_id", help="The unique ID for broadcaster")
     args = parser.parse_args()
     
     # Initialize GStreamer
@@ -84,6 +85,7 @@ def main():
     # Get all the broadcasts currently registered & active
     broadcaster_id = args.broadcaster_id
     if args.broadcaster_id is None:
+        list_broadcasts(None)
         print("Which broadcaster would you like to stream from? ")
         broadcaster_id = input()
     broadcaster_url = list_broadcasts(broadcaster_id)
