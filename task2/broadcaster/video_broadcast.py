@@ -250,7 +250,7 @@ def main():
     stream_factory = RtspStreamFactory(args)
 
     # Add the factory to the mount points, defining the URL path
-    mounts.add_factory(args.broadcaster_id, stream_factory)
+    mounts.add_factory("/"+args.broadcaster_id, stream_factory)
 
     # Attach the server to the default GLib main context
     server.attach(None)
