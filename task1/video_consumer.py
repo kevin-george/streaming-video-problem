@@ -36,16 +36,16 @@ def probe_callback(_, info, user_data):
     probe_state, textoverlay_element = user_data # Unpack user data
     buffer = info.get_buffer()
     if buffer is None:
-        return Gst.ProbeReturn.OK # Ignore empty buffers
+        return Gst.PadProbeReturn.OK # Ignore empty buffers
 
     current_pts_ns = buffer.pts # Presentation timestamp in nanoseconds
 
-    if Gst.CLOCK_TIME_IS_VALID(probe_state['previous_pts']) and Gst.CLOCK_TIME_IS_VALID(current_pts_ns):
+    if probe_state['previous_pts'] != Gst.CLOCK_TIME_NONE:
         delta_ns = current_pts_ns - probe_state['previous_pts']
         fps = 1_000_000_000 / delta_ns # Assuming monotonically increasing clock
         probe_state['current_fps'] = fps # Store calculated FPS
     else:
-        # Initial state or invalid PTS
+        # Initial state
         probe_state['current_fps'] = 0.0
 
     # Update previous PTS for next calculation
@@ -59,7 +59,7 @@ def probe_callback(_, info, user_data):
     except Exception as e:
         print(f"Error setting textoverlay property: {e}", file=sys.stderr)
 
-    return Gst.ProbeReturn.OK # Let the buffer pass through
+    return Gst.PadProbeReturn.OK # Let the buffer pass through
 
 def main():
     # Initialize GStreamer
@@ -105,7 +105,7 @@ def main():
         # Pass state and overlay element to the callback
         probe_user_data = (probe_state, textoverlay)
 
-        pad.add_probe(Gst.ProbeType.BUFFER, probe_callback, probe_user_data)
+        pad.add_probe(Gst.PadProbeType.BUFFER, probe_callback, probe_user_data)
         print("FPS probe added successfully.")
 
     except Exception as e:

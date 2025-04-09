@@ -9,8 +9,6 @@ from gi.repository import Gst, GstRtspServer, GLib
 
 # --- Configuration ---
 # Define the video source
-# NOTE: Ensure you have permissions to access the device (e.g., add user to 'video' group)
-# NOTE: Adjust device=/dev/video0 if your webcam is different
 SOURCE_ELEMENT = "v4l2src device=/dev/video0"
 
 # Encoding and RTP payloading settings
@@ -26,20 +24,19 @@ MOUNT_POINT = "/come-and-get-it" # Clients will connect to rtsp://<server_ip>:50
 
 # Probe Callback to overlay frame rate onto the image
 def probe_callback(_, info, user_data):
-    """ Callback function for the buffer probe """
     probe_state, textoverlay_element = user_data # Unpack user data
     buffer = info.get_buffer()
     if buffer is None:
-        return Gst.ProbeReturn.OK # Ignore empty buffers
+        return Gst.PadProbeReturn.OK # Ignore empty buffers
 
     current_pts_ns = buffer.pts # Presentation timestamp in nanoseconds
 
-    if Gst.CLOCK_TIME_IS_VALID(probe_state['previous_pts']) and Gst.CLOCK_TIME_IS_VALID(current_pts_ns):
+    if probe_state['previous_pts'] != Gst.CLOCK_TIME_NONE:
         delta_ns = current_pts_ns - probe_state['previous_pts']
         fps = 1_000_000_000 / delta_ns # Assuming monotonically increasing clock
         probe_state['current_fps'] = fps # Store calculated FPS
     else:
-        # Initial state or invalid PTS
+        # Initial state
         probe_state['current_fps'] = 0.0
 
     # Update previous PTS for next calculation
@@ -53,7 +50,7 @@ def probe_callback(_, info, user_data):
     except Exception as e:
         print(f"Error setting textoverlay property: {e}", file=sys.stderr)
 
-    return Gst.ProbeReturn.OK # Let the buffer pass through
+    return Gst.PadProbeReturn.OK # Let the buffer pass through
 
 # This factory creates the GStreamer pipeline for each client connection
 class RtspStreamFactory(GstRtspServer.RTSPMediaFactory):
@@ -112,7 +109,7 @@ class RtspStreamFactory(GstRtspServer.RTSPMediaFactory):
             # Gst.ProbeType.BUFFER ensures we probe when a buffer passes and also is non-blocking
             # probe_callback is the function to execute
             # textoverlay is passed as user_data to the callback
-            pad.add_probe(Gst.ProbeType.BUFFER, probe_callback, probe_user_data)
+            pad.add_probe(Gst.PadProbeType.BUFFER, probe_callback, probe_user_data)
             print("Probe added successfully")
 
         except Exception as e:
