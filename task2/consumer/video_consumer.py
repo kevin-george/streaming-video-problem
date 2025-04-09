@@ -75,7 +75,7 @@ def list_broadcasts(broadcaster_id):
 
 def main():
     parser = argparse.ArgumentParser(description="Video Consumer")
-    parser.add_argument("--broadcaster_id", required=True, help="The unique ID for broadcast(s) that are comma separated")
+    parser.add_argument("--broadcaster_id", help="The unique ID for broadcast(s) that are comma separated")
     args = parser.parse_args()
     
     # Initialize GStreamer
