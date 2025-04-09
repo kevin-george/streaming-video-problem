@@ -83,7 +83,7 @@ def main():
 
     # Get all the broadcasts currently registered & active
     broadcaster_id = args.broadcaster_id
-    if args.broadcast_id is None:
+    if args.broadcaster_id is None:
         print("Which broadcaster would you like to stream from? ")
         broadcaster_id = input()
     broadcaster_url = list_broadcasts(broadcaster_id)

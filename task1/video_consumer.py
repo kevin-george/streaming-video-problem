@@ -25,7 +25,6 @@ VIDEO_SINK_ELEMENT = "autovideosink sync=false" # This element displays the vide
 
 # Probe Callback to overlay frame rate onto the image
 def probe_callback(_, info, user_data):
-    """ Callback function for the buffer probe """
     probe_state, textoverlay_element = user_data # Unpack user data
     buffer = info.get_buffer()
     if buffer is None:
