@@ -56,8 +56,8 @@ def probe_callback(_, info, user_data):
 class RtspStreamFactory(GstRtspServer.RTSPMediaFactory):
     def __init__(self, **properties):
         super(RtspStreamFactory, self).__init__(**properties)
-        # Set shared=False to create a new source pipeline per client.
-        self.set_shared(False)
+        # This is because a new pipeline per client would cause contention over the single device
+        self.set_shared(True)
 
     def do_create_element(self, _):
         # Define the pipeline string with overlay and identity element for probe
@@ -74,7 +74,7 @@ class RtspStreamFactory(GstRtspServer.RTSPMediaFactory):
             f"{ENCODER_ELEMENT} ! "
             f"{RTP_PAYLOADER_ELEMENT}"
         )
-        print(f"Creating pipeline for client: {pipeline_str}")
+        print(f"Creating pipeline: {pipeline_str}")
         pipeline_bin = Gst.parse_launch(pipeline_str)
 
         if not pipeline_bin:
@@ -110,7 +110,8 @@ class RtspStreamFactory(GstRtspServer.RTSPMediaFactory):
             # probe_callback is the function to execute
             # textoverlay is passed as user_data to the callback
             pad.add_probe(Gst.PadProbeType.BUFFER, probe_callback, probe_user_data)
-            print("Probe added successfully")
+
+            print("New pipeline created successfully")
 
         except Exception as e:
              print(f"ERROR: Failed to setup probe: {e}", file=sys.stderr)
