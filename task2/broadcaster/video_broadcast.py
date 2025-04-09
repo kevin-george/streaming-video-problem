@@ -24,20 +24,19 @@ DISCOVERY_SERVER_URL = "http://127.0.0.1:5000"
 
 # Probe Callback to overlay frame rate onto the image
 def probe_callback(_, info, user_data):
-    """ Callback function for the buffer probe """
     probe_state, textoverlay_element = user_data # Unpack user data
     buffer = info.get_buffer()
     if buffer is None:
-        return Gst.ProbeReturn.OK # Ignore empty buffers
+        return Gst.PadProbeReturn.OK # Ignore empty buffers
 
     current_pts_ns = buffer.pts # Presentation timestamp in nanoseconds
 
-    if Gst.CLOCK_TIME_IS_VALID(probe_state['previous_pts']) and Gst.CLOCK_TIME_IS_VALID(current_pts_ns):
+    if probe_state['previous_pts'] != Gst.CLOCK_TIME_NONE:
         delta_ns = current_pts_ns - probe_state['previous_pts']
         fps = 1_000_000_000 / delta_ns # Assuming monotonically increasing clock
         probe_state['current_fps'] = fps # Store calculated FPS
     else:
-        # Initial state or invalid PTS
+        # Initial state
         probe_state['current_fps'] = 0.0
 
     # Update previous PTS for next calculation
@@ -51,7 +50,7 @@ def probe_callback(_, info, user_data):
     except Exception as e:
         print(f"Error setting textoverlay property: {e}", file=sys.stderr)
 
-    return Gst.ProbeReturn.OK # Let the buffer pass through
+    return Gst.PadProbeReturn.OK # Let the buffer pass through
 
 def register_broadcaster(broadcaster_id, server_address):
     endpoint = f"{DISCOVERY_SERVER_URL}/broadcasts"
@@ -99,7 +98,8 @@ class RtspStreamFactory(GstRtspServer.RTSPMediaFactory):
     def __init__(self, args, **properties):
         super(RtspStreamFactory, self).__init__(**properties)
         self.args = args
-        self.set_shared(False) # Set shared=False to create a new source pipeline per client.
+        # This is because a new pipeline per client would cause contention over the single device
+        self.set_shared(True)
 
     def do_create_element(self, _):
         # Define the pipeline string with overlay and identity element for probe
@@ -216,8 +216,8 @@ class RtspStreamFactory(GstRtspServer.RTSPMediaFactory):
                 probe_user_data = (probe_state, textoverlay_element)
 
                 # Gst.ProbeType.BUFFER ensures we probe when a buffer passes and also is non-blocking
-                pad.add_probe(Gst.ProbeType.BUFFER, probe_callback, probe_user_data)
-                print("Probe added successfully.")
+                pad.add_probe(Gst.PadProbeType.BUFFER, probe_callback, probe_user_data)
+                print("New pipeline created successfully")
 
             except Exception as e:
                 print(f"ERROR: Failed to setup probe: {e}", file=sys.stderr)

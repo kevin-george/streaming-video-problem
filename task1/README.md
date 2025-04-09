@@ -27,6 +27,9 @@ sudo apt install \
     gir1.2-gst-rtsp-server-1.0 \
     gir1.2-glib-2.0 -y
 
+# Dependencies needed to run video_consumer_with_opencv.py
+sudo apt install python3-opencv python3-numpy -y
+
 # Ensure your user has access to webcam device
 sudo usermod -aG video $USER
 ```

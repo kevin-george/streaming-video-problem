@@ -8,12 +8,10 @@ import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GLib
 
-# --- Elements ---
 # rtspsrc handles connection and receiving RTP data
 # It automatically handles depayloading based on SDP negotiation,
 # so we often don't need rtph264depay explicitly *immediately* after it,
 # but we need a decoder. Using decodebin is robust.
-
 DECODE_ELEMENT = "decodebin" # Automatically selects appropriate depayloader/decoder
 # Identity element to attach probe for FPS calculation
 PROBE_IDENTITY_ELEMENT = "identity name=probe_point"
@@ -26,20 +24,19 @@ DISCOVERY_SERVER_URL = "http://127.0.0.1:5000"
 
 # Probe Callback to overlay frame rate onto the image
 def probe_callback(_, info, user_data):
-    """ Callback function for the buffer probe """
     probe_state, textoverlay_element = user_data # Unpack user data
     buffer = info.get_buffer()
     if buffer is None:
-        return Gst.ProbeReturn.OK # Ignore empty buffers
+        return Gst.PadProbeReturn.OK # Ignore empty buffers
 
     current_pts_ns = buffer.pts # Presentation timestamp in nanoseconds
 
-    if Gst.CLOCK_TIME_IS_VALID(probe_state['previous_pts']) and Gst.CLOCK_TIME_IS_VALID(current_pts_ns):
+    if probe_state['previous_pts'] != Gst.CLOCK_TIME_NONE:
         delta_ns = current_pts_ns - probe_state['previous_pts']
         fps = 1_000_000_000 / delta_ns # Assuming monotonically increasing cloc so delta_ns shouldn't be negative
         probe_state['current_fps'] = fps # Store calculated FPS
     else:
-        # Initial state or invalid PTS
+        # Initial state
         probe_state['current_fps'] = 0.0
 
     # Update previous PTS for next calculation
@@ -53,7 +50,7 @@ def probe_callback(_, info, user_data):
     except Exception as e:
         print(f"Error setting textoverlay property: {e}", file=sys.stderr)
 
-    return Gst.ProbeReturn.OK # Let the buffer pass through
+    return Gst.PadProbeReturn.OK # Let the buffer pass through
 
 def list_broadcasts(broadcaster_id):
     try:
@@ -126,7 +123,7 @@ def main():
         # Pass state and overlay element to the callback
         probe_user_data = (probe_state, textoverlay)
 
-        pad.add_probe(Gst.ProbeType.BUFFER, probe_callback, probe_user_data)
+        pad.add_probe(Gst.PadProbeType.BUFFER, probe_callback, probe_user_data)
     except Exception as e:
         print(f"ERROR: Failed to setup FPS probe: {e}", file=sys.stderr)
 

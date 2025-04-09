@@ -32,7 +32,7 @@ fps_probe_state = {'prev_pts': Gst.CLOCK_TIME_NONE, 'current_fps': 0.0}
 last_caps = None
 
 def process_frame_opencv(frame):
-    """Detects red objects and draws rectangles."""
+    """Detects red objects and draws rectangles"""
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
     # Create masks for red ranges
@@ -145,7 +145,7 @@ def on_pad_added(element, pad, target_sink_pad):
     """Handles dynamically added pads from decodebin"""
     print(f"Dynamic pad '{pad.get_name()}' added by '{element.get_name()}'")
     if pad.is_linked():
-        print("Pad already linked. Ignoring.")
+        print("Pad already linked. Ignoring")
         return
     caps = pad.get_current_caps()
     struct = caps.get_structure(0)
@@ -229,27 +229,27 @@ def main():
     print("Linking static elements...")
     # Input pipeline part 1 (rtspsrc -> decodebin)
     if not rtspsrc.link(decodebin):
-        print("ERROR: Could not link rtspsrc to decodebin.", file=sys.stderr)
+        print("ERROR: Could not link rtspsrc to decodebin", file=sys.stderr)
         sys.exit(1)
 
     # Input pipeline part 2 (videoconvert -> appsink) - decodebin links here dynamically
     convert_in_sinkpad = videoconvert_in.get_static_pad("sink")
     if not videoconvert_in.link(appsink):
-         print("ERROR: Could not link videoconvert_in to appsink.", file=sys.stderr)
+         print("ERROR: Could not link videoconvert_in to appsink", file=sys.stderr)
          sys.exit(1)
 
     # Output pipeline (appsrc -> ... -> videosink)
     if not appsrc.link(videoconvert_out):
-         print("ERROR: Could not link appsrc to videoconvert_out.", file=sys.stderr)
+         print("ERROR: Could not link appsrc to videoconvert_out", file=sys.stderr)
          sys.exit(1)
     if not videoconvert_out.link(identity_probe):
-         print("ERROR: Could not link videoconvert_out to identity_probe.", file=sys.stderr)
+         print("ERROR: Could not link videoconvert_out to identity_probe", file=sys.stderr)
          sys.exit(1)
     if not identity_probe.link(textoverlay):
-         print("ERROR: Could not link identity_probe to textoverlay.", file=sys.stderr)
+         print("ERROR: Could not link identity_probe to textoverlay", file=sys.stderr)
          sys.exit(1)
     if not textoverlay.link(videosink):
-         print("ERROR: Could not link textoverlay to videosink.", file=sys.stderr)
+         print("ERROR: Could not link textoverlay to videosink", file=sys.stderr)
          sys.exit(1)
 
     # Connect the 'pad-added' signal from decodebin to our handler
@@ -271,7 +271,7 @@ def main():
     print("Starting pipeline...")
     ret = pipeline.set_state(Gst.State.PLAYING)
     if ret == Gst.StateChangeReturn.FAILURE:
-        print("ERROR: Unable to set the pipeline to the playing state.", file=sys.stderr)
+        print("ERROR: Unable to set the pipeline to the playing state", file=sys.stderr)
         pipeline.set_state(Gst.State.NULL)
         sys.exit(1)
 
@@ -288,7 +288,7 @@ def on_message(bus, message, loop):
     """ Callback for messages on the pipeline bus """
     mtype = message.type
     if mtype == Gst.MessageType.EOS:
-        print("End-of-stream reached.")
+        print("End-of-stream reached")
         loop.quit()
     elif mtype == Gst.MessageType.ERROR:
         err, debug = message.parse_error()
