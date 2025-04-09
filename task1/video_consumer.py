@@ -5,18 +5,11 @@ import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GLib
 
-# --- Configuration ---
-# Set the IP address of the machine running the RTSP server script
-# Use '127.0.0.1' if running producer and consumer on the same machine
 SERVER_IP = "127.0.0.1"
-
-# RTSP Server Settings (MUST match producer)
 RTSP_PORT = "5051"
 MOUNT_POINT = "/come-and-get-it"
-
 RTSP_URL = f"rtsp://{SERVER_IP}:{RTSP_PORT}{MOUNT_POINT}"
 
-# --- Elements ---
 # rtspsrc handles connection and receiving RTP data
 # It automatically handles depayloading based on SDP negotiation,
 # so we often don't need rtph264depay explicitly *immediately* after it,
@@ -43,7 +36,7 @@ def probe_callback(_, info, user_data):
     if probe_state['previous_pts'] != Gst.CLOCK_TIME_NONE:
         delta_ns = current_pts_ns - probe_state['previous_pts']
         fps = 1_000_000_000 / delta_ns # Assuming monotonically increasing clock
-        probe_state['current_fps'] = fps # Store calculated FPS
+        probe_state['current_fps'] = fps
     else:
         # Initial state
         probe_state['current_fps'] = 0.0
@@ -65,7 +58,6 @@ def main():
     # Initialize GStreamer
     Gst.init(sys.argv[1:] if len(sys.argv) > 1 else None)
 
-    # --- Build the pipeline string ---
     # Using decodebin simplifies handling different payload types negotiated via RTSP
     pipeline_str = (
         f"{RTSP_SOURCE_ELEMENT} ! "
@@ -75,10 +67,7 @@ def main():
         f"{TEXT_OVERLAY_ELEMENT} ! "   # Overlay FPS
         f"{VIDEO_SINK_ELEMENT}"
     )
-
     print(f"Using pipeline: {pipeline_str}")
-
-    # Create the pipeline
     pipeline = Gst.parse_launch(pipeline_str)
 
     # Check if pipeline creation was successful
@@ -106,7 +95,7 @@ def main():
         probe_user_data = (probe_state, textoverlay)
 
         pad.add_probe(Gst.PadProbeType.BUFFER, probe_callback, probe_user_data)
-        print("FPS probe added successfully.")
+        print("FPS probe added successfully")
 
     except Exception as e:
         print(f"ERROR: Failed to setup FPS probe: {e}", file=sys.stderr)
@@ -119,11 +108,10 @@ def main():
     bus.add_signal_watch()
     bus.connect("message", on_message, loop)
 
-    # Start playing the pipeline
     print("Starting pipeline...")
     ret = pipeline.set_state(Gst.State.PLAYING)
     if ret == Gst.StateChangeReturn.FAILURE:
-        print("ERROR: Unable to set the pipeline to the playing state.", file=sys.stderr)
+        print("ERROR: Unable to set the pipeline to the playing state", file=sys.stderr)
         pipeline.set_state(Gst.State.NULL)
         sys.exit(1)
 
@@ -132,10 +120,9 @@ def main():
     except KeyboardInterrupt:
         print("Ctrl+C pressed, stopping...")
     finally:
-        # Clean up
         print("Stopping pipeline...")
         pipeline.set_state(Gst.State.NULL)
-        print("Pipeline stopped.")
+        print("Pipeline stopped")
 
 def on_message(bus, message, loop):
     """ Callback for messages on the pipeline bus """

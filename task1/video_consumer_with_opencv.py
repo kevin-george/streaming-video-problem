@@ -3,16 +3,15 @@
 import sys
 import gi
 import numpy as np
-import cv2 # Import OpenCV
+import cv2
 
 gi.require_version('Gst', '1.0')
 gi.require_version('GstApp', '1.0')
 from gi.repository import Gst, GstApp, GLib, GObject
 
-# --- Configuration ---
-SERVER_IP = "127.0.0.1" # !!! CHANGE THIS TO THE SERVER'S ACTUAL IP ADDRESS !!!
-RTSP_PORT = "8554"
-MOUNT_POINT = "/test"
+SERVER_IP = "127.0.0.1"
+RTSP_PORT = "5051"
+MOUNT_POINT = "/come-and-get-it"
 RTSP_URL = f"rtsp://{SERVER_IP}:{RTSP_PORT}{MOUNT_POINT}"
 
 # OpenCV Red Detection HSV Range (Tune these values for your specific lighting/camera)
@@ -23,7 +22,6 @@ LOWER_RED_2 = np.array([160, 100, 100])  # Lower bound for Hue=180 range
 UPPER_RED_2 = np.array([179, 255, 255])  # Upper bound for Hue=180 range (OpenCV Hue max is 179)
 MIN_CONTOUR_AREA = 500 # Minimum area to consider a contour as an object
 
-# --- Global variables for pipeline elements and state ---
 pipeline = None
 appsrc = None
 textoverlay = None
@@ -33,7 +31,6 @@ fps_probe_state = {'prev_pts': Gst.CLOCK_TIME_NONE, 'current_fps': 0.0}
 # Store caps from appsink to configure appsrc
 last_caps = None
 
-# --- OpenCV Processing Function ---
 def process_frame_opencv(frame):
     """Detects red objects and draws rectangles."""
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -42,10 +39,6 @@ def process_frame_opencv(frame):
     mask1 = cv2.inRange(hsv, LOWER_RED_1, UPPER_RED_1)
     mask2 = cv2.inRange(hsv, LOWER_RED_2, UPPER_RED_2)
     mask = cv2.bitwise_or(mask1, mask2)
-
-    # Optional: Morphological operations to clean up mask
-    # mask = cv2.erode(mask, None, iterations=2)
-    # mask = cv2.dilate(mask, None, iterations=2)
 
     # Find contours
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -58,7 +51,6 @@ def process_frame_opencv(frame):
 
     return frame
 
-# --- appsink Callback ---
 def on_new_sample(appsink):
     """Callback function for the appsink's 'new-sample' signal."""
     global appsrc, last_caps
@@ -95,10 +87,8 @@ def on_new_sample(appsink):
             dtype=np.uint8
         )
 
-        # --- Process with OpenCV ---
         processed_frame = process_frame_opencv(frame.copy()) # Process a copy
 
-        # --- Push processed frame to appsrc ---
         if appsrc is not None:
             # Create a new Gst.Buffer from the processed NumPy array
             # Use tobytes() for contiguous data
@@ -122,37 +112,35 @@ def on_new_sample(appsink):
     return Gst.FlowReturn.ERROR
 
 
-# --- Probe Callback for FPS ---
 def fps_probe_callback(pad, info, user_data):
     """ Callback function for the buffer probe to calculate FPS """
     global fps_probe_state, textoverlay
     buffer = info.get_buffer()
     if buffer is None or textoverlay is None: # Check if textoverlay is available
-        return Gst.ProbeReturn.OK
+        return Gst.PadProbeReturn.OK
 
     current_pts = buffer.pts # Presentation timestamp in nanoseconds
 
-    # --- FPS Calculation ---
-    if Gst.CLOCK_TIME_IS_VALID(fps_probe_state['prev_pts']) and Gst.CLOCK_TIME_IS_VALID(current_pts):
+    if fps_probe_state['previous_pts'] != Gst.CLOCK_TIME_NONE:
         delta_ns = current_pts - fps_probe_state['prev_pts']
-        if delta_ns > 0:
-            fps = 1_000_000_000 / delta_ns
-            fps_probe_state['current_fps'] = fps
+        fps = 1_000_000_000 / delta_ns  # Assuming monotonically increasing clock
+        fps_probe_state['current_fps'] = fps
     else:
+        # Initial state
         fps_probe_state['current_fps'] = 0.0
 
+    # Update previous PTS for next calculation
     fps_probe_state['prev_pts'] = current_pts
-    # --- End FPS Calculation ---
 
     fps_display_text = f"FPS: {fps_probe_state['current_fps']:.1f}"
     try:
+        # Update the text property of the textoverlay element
         textoverlay.set_property("text", fps_display_text)
     except Exception as e:
         print(f"Error setting textoverlay property: {e}", file=sys.stderr)
 
-    return Gst.ProbeReturn.OK
+    return Gst.PadProbeReturn.OK # Let the buffer pass through
 
-# --- decodebin pad_added handler ---
 def on_pad_added(element, pad, target_sink_pad):
     """Handles dynamically added pads from decodebin"""
     print(f"Dynamic pad '{pad.get_name()}' added by '{element.get_name()}'")
@@ -170,30 +158,6 @@ def on_pad_added(element, pad, target_sink_pad):
     else:
          print(f"Ignoring non-raw-video pad: {name}")
 
-
-# --- Bus Message Handler ---
-def on_message(bus, message, loop_ref):
-    """ Callback for messages on the pipeline bus """
-    mtype = message.type
-    if mtype == Gst.MessageType.EOS:
-        print("End-of-stream reached.")
-        loop_ref.quit()
-    elif mtype == Gst.MessageType.ERROR:
-        err, debug = message.parse_error()
-        print(f"Error received from element {message.src.get_name()}: {err.message}", file=sys.stderr)
-        print(f"Debugging information: {debug if debug else 'none'}", file=sys.stderr)
-        loop_ref.quit()
-    elif mtype == Gst.MessageType.WARNING:
-        err, debug = message.parse_warning()
-        print(f"Warning received from element {message.src.get_name()}: {err.message}", file=sys.stderr)
-        print(f"Debugging information: {debug if debug else 'none'}", file=sys.stderr)
-    # elif mtype == Gst.MessageType.STATE_CHANGED:
-    #      if message.src == pipeline: # Check if source is the pipeline
-    #           old_state, new_state, pending_state = message.parse_state_changed()
-    #           print(f"Pipeline state changed from {Gst.Element.state_get_name(old_state)} to {Gst.Element.state_get_name(new_state)}")
-    return True # Continue watching for messages
-
-
 def main():
     global pipeline, appsrc, textoverlay, loop
 
@@ -203,7 +167,6 @@ def main():
     # Create a GLib Main Loop
     loop = GLib.MainLoop()
 
-    # --- Create Pipeline Elements ---
     pipeline = Gst.Pipeline.new("opencv-consumer-pipeline")
     if not pipeline:
         print("ERROR: Could not create pipeline.", file=sys.stderr)
@@ -227,7 +190,6 @@ def main():
         print("ERROR: Not all elements could be created.", file=sys.stderr)
         sys.exit(1)
 
-    # --- Configure Elements ---
     rtspsrc.set_property("location", RTSP_URL)
     rtspsrc.set_property("latency", 100) # Buffer latency
 
@@ -254,7 +216,6 @@ def main():
     # Configure final sink
     videosink.set_property("sync", False)
 
-    # --- Add Elements to Pipeline ---
     pipeline.add(rtspsrc)
     pipeline.add(decodebin)
     pipeline.add(videoconvert_in)
@@ -265,7 +226,6 @@ def main():
     pipeline.add(textoverlay)
     pipeline.add(videosink)
 
-    # --- Link Static Elements ---
     print("Linking static elements...")
     # Input pipeline part 1 (rtspsrc -> decodebin)
     if not rtspsrc.link(decodebin):
@@ -292,21 +252,18 @@ def main():
          print("ERROR: Could not link textoverlay to videosink.", file=sys.stderr)
          sys.exit(1)
 
-    # --- Connect Dynamic Pad Handler ---
     # Connect the 'pad-added' signal from decodebin to our handler
     # Pass the sink pad of the next element (videoconvert_in) as user data
     decodebin.connect("pad-added", on_pad_added, convert_in_sinkpad)
 
-    # --- Add FPS Probe ---
     probe_pad = identity_probe.get_static_pad("src")
     if not probe_pad:
-        print("ERROR: Could not get src pad of identity_probe.", file=sys.stderr)
+        print("ERROR: Could not get src pad of identity_probe", file=sys.stderr)
         sys.exit(1)
-    probe_pad.add_probe(Gst.ProbeType.BUFFER, fps_probe_callback, None) # Pass None initially, textoverlay is global
-    print("FPS probe added successfully.")
+    probe_pad.add_probe(Gst.PadProbeType.BUFFER, fps_probe_callback, None) # Pass None initially, textoverlay is global
+    print("FPS probe added successfully")
 
-
-    # --- Start Pipeline ---
+    # Add a bus watcher to handle messages
     bus = pipeline.get_bus()
     bus.add_signal_watch()
     bus.connect("message", on_message, loop)
@@ -325,9 +282,33 @@ def main():
     finally:
         print("Stopping pipeline...")
         pipeline.set_state(Gst.State.NULL)
-        print("Pipeline stopped.")
+        print("Pipeline stopped")
+
+def on_message(bus, message, loop):
+    """ Callback for messages on the pipeline bus """
+    mtype = message.type
+    if mtype == Gst.MessageType.EOS:
+        print("End-of-stream reached.")
+        loop.quit()
+    elif mtype == Gst.MessageType.ERROR:
+        err, debug = message.parse_error()
+        print(f"Error received from element {message.src.get_name()}: {err.message}", file=sys.stderr)
+        print(f"Debugging information: {debug if debug else 'none'}", file=sys.stderr)
+        loop.quit()
+    elif mtype == Gst.MessageType.WARNING:
+        err, debug = message.parse_warning()
+        print(f"Warning received from element {message.src.get_name()}: {err.message}", file=sys.stderr)
+        print(f"Debugging information: {debug if debug else 'none'}", file=sys.stderr)
+    elif mtype == Gst.MessageType.STATE_CHANGED:
+         # We are only interested in state-changed messages from the pipeline
+        if message.src == Gst.Element.get_parent(message.src): # Check if source is the pipeline
+             old_state, new_state, pending_state = message.parse_state_changed()
+             print(f"Pipeline state changed from {Gst.Element.state_get_name(old_state)} to {Gst.Element.state_get_name(new_state)}")
+    # else:
+    #     print(f"Received message of type {mtype} from {message.src.get_name()}")
+
+    return True # Continue watching for messages
 
 
 if __name__ == '__main__':
     main()
-
